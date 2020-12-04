@@ -129,6 +129,14 @@ char* readMessage(int fd){
     return ret;
 }
 
+void writeMessage(int fd, char* message){
+    int bytesWritten = 0;
+    int bytesToWrite = strlen(message);
+    do {
+        bytesWritten += write(fd, message + bytesWritten, bytesToWrite - bytesWritten);
+    } while (bytesWritten < bytesToWrite);
+}
+
 void echo(struct connection* arg)
 {
     char host[100], port[10], buf[101];
@@ -150,13 +158,39 @@ void echo(struct connection* arg)
 
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
-    char buff[256];
+
+    //send m1
+    printf("SENDING M1\n");
 	char* m1 = "REG|13|Knock, knock.|";
+    writeMessage(c->fd, m1);
     printf("sent:\t%s\n", m1);
-    write(c->fd, m1, strlen(m1));
-    char* m2 = readMessage(c->fd);
-    printf("read:\t%s\n", m2);
-    //printf("%s\n", m2);
+    //read m2
+    // printf("READING M2\n");
+    // char* m2 = readMessage(c->fd);
+    // printf("read:\t%s\n", m2);
+    //check m2 for errors
+
+    // // free(m2);
+    // // //send m3
+    // char* m3 = "REG|4|Who.|";
+    // write(c->fd, m3, strlen(m3));
+    // printf("sent:\t%s\n", m3);
+    // //read m4
+    // char* m4 = readMessage(c->fd);
+    // printf("read:\t%s\n", m4);
+    // //check m4 for errors
+
+    // free(m4);
+
+    // //send m5
+    // char* m5 = "REG|31|I didn't know you were an owl!|";
+    // write(c->fd, m5, strlen(m5));
+
+    // //read m6
+    // char* m6 = readMessage(c->fd);
+    // printf("read:\t%s\n", m6);
+
+
 
     close(c->fd);
     free(c);

@@ -9,15 +9,55 @@
 #define HOST "localhost"
 #define PORT "8199"
 
+char* readMessage(int fd){
+    int status = -1;
+    char buffer[256];
+    int retsize = 64;
+    char* ret = malloc(sizeof(char) * retsize);
+    int numread = 0;
+    do{
+        status = read(fd, buffer, 255);
+        numread += status;
+        while(numread > retsize){
+            retsize *= 2;
+            ret = realloc(ret, retsize);
+        }
+        if(status > 0) {
+            buffer[status] = '\0';
+            strcat(ret, buffer);
+        }
+    }while(status > 0);
+    return ret;
+}
+
+void writeMessage(int fd, char* message){
+    int bytesWritten = 0;
+    int bytesToWrite = strlen(message);
+    do {
+        bytesWritten += write(fd, message + bytesWritten, bytesToWrite - bytesWritten);
+    } while (bytesWritten < bytesToWrite);
+}
+
 void exchangeMessages(int sock){
-    char buff[256];
-	int numRead = 0;
-	numRead = read(sock, buff, 256);
-	buff[numRead] = '\0';
-	printf("read:\t%s\n", buff);
+	//read m1
+	printf("READING M1\n");
+	char* m1 = readMessage(sock);
+	printf("read:\t%s\n", m1);
+	//send m2
+	printf("SENDING M2\n");
 	char* m2 = "REG|12|Who's there?|";
-	write(sock, m2, strlen(m2));
+	writeMessage(sock, m2);
 	printf("sent:\t%s\n", m2);
+
+	// //read m3
+	// numRead = read(sock, buff, 256);
+	// buff[numRead] = '\0';
+	// printf("read:\t%s\n", buff);
+	//send m4
+
+	//read m5
+
+	//send m6
 }
 
 int main(int argc, char **argv)
