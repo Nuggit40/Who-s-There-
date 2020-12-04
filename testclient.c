@@ -11,20 +11,13 @@
 
 void exchangeMessages(int sock){
     char buff[256];
-    char* firstMsg = "REG|12|Hello World.|";
-    char* secondMsg = "second message from client";
-    //send first message
-    send(sock, firstMsg, strlen(firstMsg) + 1, 0);
-    printf("sent:%s\n", firstMsg);
-    //read first response
-    read(sock, buff, 256);
-    printf("read:%s\n", buff);
-    //send second message
-    send(sock, secondMsg, strlen(secondMsg) + 1, 0);
-    printf("sent:%s\n", secondMsg);
-
-    //printf("%s\n", buff);
-
+	int numRead = 0;
+	numRead = read(sock, buff, 256);
+	buff[numRead] = '\0';
+	printf("read:\t%s\n", buff);
+	char* m2 = "REG|12|Who's there?|";
+	write(sock, m2, strlen(m2));
+	printf("sent:\t%s\n", m2);
 }
 
 int main(int argc, char **argv)

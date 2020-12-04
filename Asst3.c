@@ -108,6 +108,27 @@ int server(char *port)
     return 0;
 }
 
+char* readMessage(int fd){
+    int status = -1;
+    char buffer[256];
+    int retsize = 64;
+    char* ret = malloc(sizeof(char) * retsize);
+    int numread = 0;
+    do{
+        status = read(fd, buffer, 255);
+        numread += status;
+        while(numread > retsize){
+            retsize *= 2;
+            ret = realloc(ret, retsize);
+        }
+        if(status > 0) {
+            buffer[status] = '\0';
+            strcat(ret, buffer);
+        }
+    }while(status > 0);
+    return ret;
+}
+
 void echo(struct connection* arg)
 {
     char host[100], port[10], buf[101];
@@ -129,15 +150,13 @@ void echo(struct connection* arg)
 
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
-	char* msg = "first message from server!";
-	char buff[256];
-	read(c->fd, buff, 256);
-	printf("read:%s\n", buff);
-    readMsgType(buff);
-	send(c->fd, msg, strlen(msg) + 1, 0);
-	printf("sent:%s\n", msg);
-	read(c->fd, buff, 256);
-	printf("read:%s\n", buff);
+    char buff[256];
+	char* m1 = "REG|13|Knock, knock.|";
+    printf("sent:\t%s\n", m1);
+    write(c->fd, m1, strlen(m1));
+    char* m2 = readMessage(c->fd);
+    printf("read:\t%s\n", m2);
+    //printf("%s\n", m2);
 
     close(c->fd);
     free(c);
