@@ -11,7 +11,7 @@
 
 void exchangeMessages(int sock){
     char buff[256];
-    char* firstMsg = "first message from client";
+    char* firstMsg = "REG|12|Hello World.|";
     char* secondMsg = "second message from client";
     //send first message
     send(sock, firstMsg, strlen(firstMsg) + 1, 0);
