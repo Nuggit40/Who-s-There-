@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
+#include <string.h>
+#include <ctype.h>
 #define BACKLOG 5
 
 
@@ -14,7 +15,7 @@ struct connection {
     socklen_t addr_len;
     int fd;
 };
-
+void readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
 
@@ -132,6 +133,7 @@ void echo(struct connection* arg)
 	char buff[256];
 	read(c->fd, buff, 256);
 	printf("read:%s\n", buff);
+    readMsgType(buff);
 	send(c->fd, msg, strlen(msg) + 1, 0);
 	printf("sent:%s\n", msg);
 	read(c->fd, buff, 256);
@@ -140,3 +142,64 @@ void echo(struct connection* arg)
     close(c->fd);
     free(c);
 }
+void append(char* s, char c) {
+        int len = strlen(s);
+        s[len] = c;
+        s[len+1] = '\0';
+}
+
+void readMsgType(char *message){
+       int pipe_count = 0;
+       char buff[strlen(message)];
+       char num_buff[256];
+       int i=0;
+       int j=0;
+       int k=0;
+       int len;
+       int wordCount=0;
+       printf("message:%s\n",message);
+        if(message[0]=='R'&& message[1]=='E' &&message[2]=='G'){
+                    i=3;
+        }else{
+            puts("ERROR");
+        }
+       while(i<strlen(message)){
+           if(message[i]=='|'){
+               pipe_count++;
+           }
+           if(pipe_count==1 && isdigit(message[i])){
+               num_buff[j]=message[i];
+               j++;
+           }
+           if(pipe_count==2 ){
+               if(message[i+1]!='|'){
+                buff[k]=message[i+1];
+                k++;
+                wordCount++;
+               }
+           }
+           if(pipe_count==3){
+               break;
+           }
+           i++;
+        }
+        num_buff[j] = '\0';
+        buff[k]='\0';
+        len=atoi(num_buff);
+        
+       if(len!=wordCount){
+            puts("ERROR");
+        }else if(pipe_count!=3){
+            puts("ERROR");
+       }
+        else{
+            printf("Word:%s\n",buff);
+        }
+}
+        
+       
+
+
+
+    
+
