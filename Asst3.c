@@ -6,8 +6,8 @@
 #include <netdb.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #define BACKLOG 5
-
 
 // the argument we will pass to the connection-handler threads
 struct connection {
@@ -110,31 +110,37 @@ int server(char *port)
 
 char* readMessage(int fd){
     int status = -1;
-    char buffer[256];
-    int retsize = 64;
-    char* ret = malloc(sizeof(char) * retsize);
+    char* buffer = malloc(sizeof(char) * 256);
+    buffer[0] = '\0';
     int numread = 0;
+    int pipeCount = 0;
+	char c;
     do{
-        status = read(fd, buffer, 255);
+        status = read(fd, &c, 1);
+		if(status == -1) printf("READ ERROR\n");
         numread += status;
-        while(numread > retsize){
-            retsize *= 2;
-            ret = realloc(ret, retsize);
-        }
         if(status > 0) {
-            buffer[status] = '\0';
-            strcat(ret, buffer);
+			buffer[numread - 1] = c;
+			if(c == '|'){
+				++pipeCount;
+				if(pipeCount == 3) break;
+			}
         }
-    }while(status > 0);
-    return ret;
+    } while(status > 0);
+    buffer[numread] = '\0';
+    return buffer;
 }
 
-void writeMessage(int fd, char* message){
-    int bytesWritten = 0;
-    int bytesToWrite = strlen(message);
-    do {
-        bytesWritten += write(fd, message + bytesWritten, bytesToWrite - bytesWritten);
-    } while (bytesWritten < bytesToWrite);
+void buffered_write(int fd, char *buf, int len) {
+	int cur = 0;
+	while (cur < len) {
+		int nwrite = write(fd, buf + cur, len - cur);
+		if (nwrite == -1) {
+			fprintf(stderr, "%s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		cur += nwrite;
+	}
 }
 
 void echo(struct connection* arg)
@@ -160,37 +166,39 @@ void echo(struct connection* arg)
 	//EXCHANGING MESSAGES
 
     //send m1
-    printf("SENDING M1\n");
+    //printf("SENDING M1\n");
 	char* m1 = "REG|13|Knock, knock.|";
-    writeMessage(c->fd, m1);
+    buffered_write(c->fd, m1, strlen(m1));
     printf("sent:\t%s\n", m1);
     //read m2
-    // printf("READING M2\n");
-    // char* m2 = readMessage(c->fd);
-    // printf("read:\t%s\n", m2);
+    //printf("READING M2\n");
+    char* m2 = readMessage(c->fd);
+    printf("read:\t%s\n", m2);
     //check m2 for errors
 
-    // // free(m2);
-    // // //send m3
-    // char* m3 = "REG|4|Who.|";
-    // write(c->fd, m3, strlen(m3));
-    // printf("sent:\t%s\n", m3);
-    // //read m4
-    // char* m4 = readMessage(c->fd);
-    // printf("read:\t%s\n", m4);
-    // //check m4 for errors
+    free(m2);
+    //send m3
+    char* m3 = "REG|4|Who.|";
+    buffered_write(c->fd, m3, strlen(m3));
+    printf("sent:\t%s\n", m3);
+    //read m4
+    char* m4 = readMessage(c->fd);
+    printf("read:\t%s\n", m4);
+    //check m4 for errors
 
-    // free(m4);
+    free(m4);
 
-    // //send m5
-    // char* m5 = "REG|31|I didn't know you were an owl!|";
-    // write(c->fd, m5, strlen(m5));
+    //send m5
+    char* m5 = "REG|30|I didn't know you were an owl!|";
+    write(c->fd, m5, strlen(m5));
+    printf("sent:\t%s\n", m5);
 
     // //read m6
-    // char* m6 = readMessage(c->fd);
-    // printf("read:\t%s\n", m6);
+    char* m6 = readMessage(c->fd);
+    printf("read:\t%s\n", m6);
+    //check m6 for errors
 
-
+    free(m6);
 
     close(c->fd);
     free(c);

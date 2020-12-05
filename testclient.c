@@ -5,59 +5,74 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <errno.h>
 
 #define HOST "localhost"
 #define PORT "8199"
 
 char* readMessage(int fd){
     int status = -1;
-    char buffer[256];
-    int retsize = 64;
-    char* ret = malloc(sizeof(char) * retsize);
+    char* buffer = malloc(sizeof(char) * 256);
+    buffer[0] = '\0';
     int numread = 0;
+    int pipeCount = 0;
+	char c;
     do{
-        status = read(fd, buffer, 255);
+        status = read(fd, &c, 1);
+		if(status == -1) printf("READ ERROR\n");
         numread += status;
-        while(numread > retsize){
-            retsize *= 2;
-            ret = realloc(ret, retsize);
-        }
         if(status > 0) {
-            buffer[status] = '\0';
-            strcat(ret, buffer);
+			buffer[numread - 1] = c;
+			if(c == '|'){
+				++pipeCount;
+				if(pipeCount == 3) break;
+			}
         }
-    }while(status > 0);
-    return ret;
+    } while(status > 0);
+    buffer[numread] = '\0';
+    return buffer;
 }
 
-void writeMessage(int fd, char* message){
-    int bytesWritten = 0;
-    int bytesToWrite = strlen(message);
-    do {
-        bytesWritten += write(fd, message + bytesWritten, bytesToWrite - bytesWritten);
-    } while (bytesWritten < bytesToWrite);
+void buffered_write(int fd, char *buf, int len) {
+	int cur = 0;
+	while (cur < len) {
+		int nwrite = write(fd, buf + cur, len - cur);
+		if (nwrite == -1) {
+			fprintf(stderr, "%s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		cur += nwrite;
+	}
 }
 
 void exchangeMessages(int sock){
 	//read m1
-	printf("READING M1\n");
+	//printf("READING M1\n");
 	char* m1 = readMessage(sock);
 	printf("read:\t%s\n", m1);
+	free(m1);
 	//send m2
-	printf("SENDING M2\n");
+	//printf("SENDING M2\n");
 	char* m2 = "REG|12|Who's there?|";
-	writeMessage(sock, m2);
+	buffered_write(sock, m2, strlen(m2));
 	printf("sent:\t%s\n", m2);
 
-	// //read m3
-	// numRead = read(sock, buff, 256);
-	// buff[numRead] = '\0';
-	// printf("read:\t%s\n", buff);
+	//read m3
+	char* m3 = readMessage(sock);
+	printf("read:\t%s\n", m3);
+	free(m3);
 	//send m4
-
+	char* m4 = "REG|9|Who, who?|";
+	buffered_write(sock, m4, strlen(m4));
+	printf("sent:\t%s\n", m4);
 	//read m5
-
+	char* m5 = readMessage(sock);
+	printf("read:\t%s\n", m5);
+	free(m5);
 	//send m6
+	char* m6 = "REG|4|Ugh.|";
+	buffered_write(sock, m6, strlen(m6));
+	printf("sent:\t%s\n", m6);
 }
 
 int main(int argc, char **argv)
