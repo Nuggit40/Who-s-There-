@@ -113,29 +113,44 @@ int server(char *port)
     return 0;
 }
 
-
-
 char* readMessage(int fd){
     int status = -1;
-    int retsize = 100;
+    int retsize = 256;
     char* buffer = malloc(sizeof(char) * retsize);
-    buffer[0] = '\0';
     int numread = 0;
-	char c;
-    int count;
-    do{
-        status = read(fd, &c, 1);
-		if(status == -1) printf("READ ERROR\n");
-        numread += status;
-        while(numread > retsize){
-            retsize *= 2;
-            buffer = realloc(buffer, retsize);
+    //reading REG or ERR
+    for(numread = 0; numread < 4; ++numread){
+        read(fd, &buffer[numread], 1);
+    }
+    if(buffer[0]=='R' && buffer[1]=='E' && buffer[2]=='G' && buffer[3]=='|'){
+        do{
+            read(fd, &buffer[numread], 1);
+            numread++;
+        } while (isdigit(buffer[numread-1]));
+        //calculate size of content
+        int numstart = 4;
+        int numend = numread - 1;
+        char sizestr[numend-numstart+1];
+        memcpy(sizestr, &buffer[numstart], numend-numstart);
+        sizestr[numend-numstart] = '\0';
+        int contentSize = atoi(sizestr);
+        //if digits do not end with pipe, return and becomes format error 
+        if(buffer[numread-1] != '|'){
+            printf("%c\n",buffer[numread]);
+            return buffer;
         }
-        if(status > 0) {
-			buffer[numread - 1] = c;
-            ioctl(fd, FIONREAD, &count);
+        int leftToRead = numread+contentSize+1;
+        for(int i = numread; i < leftToRead; ++i){
+            read(fd, &buffer[i], 1);
+            ++numread;
         }
-    } while(count > 0);
+    } else if(buffer[0]=='E' && buffer[1]=='R' && buffer[2]=='R' && buffer[3]=='|'){
+        //read until you encounter the ending pipe
+        do{
+            read(fd, &buffer[numread], 1);
+            numread++;
+        }while(buffer[numread-1] != '|');
+    } 
     buffer[numread] = '\0';
     return buffer;
 }
