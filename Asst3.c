@@ -110,7 +110,8 @@ int server(char *port)
 
 char* readMessage(int fd){
     int status = -1;
-    char* buffer = malloc(sizeof(char) * 256);
+    int retsize = 100;
+    char* buffer = malloc(sizeof(char) * retsize);
     buffer[0] = '\0';
     int numread = 0;
     int pipeCount = 0;
@@ -119,6 +120,11 @@ char* readMessage(int fd){
         status = read(fd, &c, 1);
 		if(status == -1) printf("READ ERROR\n");
         numread += status;
+        //increase buffer size as needed
+        while(numread > retsize){
+            retsize *= 2;
+            buffer = realloc(buffer, retsize);
+        }
         if(status > 0) {
 			buffer[numread - 1] = c;
 			if(c == '|'){
@@ -252,6 +258,11 @@ int checkM6(char* m6){
     return 0;
 }
 
+struct joke {
+    char* setup;
+    char* punchline;
+};
+
 void echo(struct connection* arg)
 {
     char host[100], port[10];
@@ -269,6 +280,9 @@ void echo(struct connection* arg)
         close(c->fd);
         return;
     }
+
+    //create joke
+    struct joke curJoke = {"Who", "I didn't know you were an owl!"};
 
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
