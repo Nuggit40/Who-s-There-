@@ -143,12 +143,120 @@ void buffered_write(int fd, char *buf, int len) {
 	}
 }
 
+int checkM2(char* m2){
+    //returns: 
+    //0 if valid message
+    //1 if content error
+    //2 if length error
+    //3 if format error
+    //4 if ERR message
+
+    //checking format
+
+    //format correct, checking content and length
+    const char delim = '|';
+    char* type;
+    char* contentLen;
+    char* content;
+    type = strtok(m2, &delim);
+    contentLen = strtok(NULL, &delim);
+    content = strtok(NULL, &delim);
+    // printf("type:%s\n", type);
+    // printf("contentLen:%s\n", contentLen);
+    // printf("content:%s\n", content);
+    //checking content
+    if(strcmp("Who's there?", content) != 0){
+        return 1;
+    }
+    //checking length
+    if(strlen(content) != atoi(contentLen)){
+        return 2;
+    }
+    //valid message
+    return 0;
+}
+
+int checkM4(char* m4, char* setup_line){
+    //returns: 
+    //0 if valid message
+    //1 if content error
+    //2 if length error
+    //3 if format error
+    //4 if ERR message
+
+    //checking format
+
+    //format correct, checking content and length
+    const char delim = '|';
+    char* type;
+    char* contentLen;
+    char* content;
+    type = strtok(m4, &delim);
+    contentLen = strtok(NULL, &delim);
+    content = strtok(NULL, &delim);
+    // printf("type:%s\n", type);
+    // printf("contentLen:%s\n", contentLen);
+    // printf("content:%s\n", content);
+    //checking content
+    char* setup = malloc(sizeof(char) * strlen(setup_line) + 7);
+    strcpy(setup, setup_line);
+    strcat(setup, ", who?");
+    // printf("setup:%s\n", setup);
+    if(strcmp(setup, content) != 0){
+        free(setup);
+        return 1;
+    }
+    free(setup);
+    //checking length
+    if(strlen(content) != atoi(contentLen)){
+        return 2;
+    }
+    //valid message
+    return 0;
+}
+
+int checkM6(char* m6){
+     //returns: 
+    //0 if valid message
+    //1 if content error
+    //2 if length error
+    //3 if format error
+    //4 if ERR message
+
+    //checking format
+
+    //format correct, checking content and length
+    const char delim = '|';
+    char* type;
+    char* contentLen;
+    char* content;
+    type = strtok(m6, &delim);
+    contentLen = strtok(NULL, &delim);
+    content = strtok(NULL, &delim);
+    // printf("type:%s\n", type);
+    // printf("contentLen:%s\n", contentLen);
+    // printf("content:%s\n", content);
+    
+    //checking length
+    if(strlen(content) != atoi(contentLen)){
+        return 2;
+    }
+    //checking content
+    //content should be a string of letters ended by punctuation
+    int i;
+    for(i = 0; i < atoi(contentLen) - 1; ++i){
+        if(!isalpha(content[i])) return 1;
+    }
+    if(!ispunct(content[i])) return 1;
+    //valid message
+    return 0;
+}
+
 void echo(struct connection* arg)
 {
-    char host[100], port[10], buf[101];
+    char host[100], port[10];
     struct connection *c = (struct connection *) arg;
-    int error, nread;
-
+    int error;
 	// find out the name and port of the remote host
     error = getnameinfo((struct sockaddr *) &c->addr, c->addr_len, host, 100, port, 10, NI_NUMERICSERV);
     	// we provide:
@@ -164,28 +272,27 @@ void echo(struct connection* arg)
 
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
-
+    int err;
     //send m1
-    //printf("SENDING M1\n");
 	char* m1 = "REG|13|Knock, knock.|";
     buffered_write(c->fd, m1, strlen(m1));
     printf("sent:\t%s\n", m1);
     //read m2
-    //printf("READING M2\n");
     char* m2 = readMessage(c->fd);
     printf("read:\t%s\n", m2);
     //check m2 for errors
-
+    err = checkM2(m2);
     free(m2);
     //send m3
     char* m3 = "REG|4|Who.|";
+    char* setup_line = "Who";
     buffered_write(c->fd, m3, strlen(m3));
     printf("sent:\t%s\n", m3);
     //read m4
     char* m4 = readMessage(c->fd);
     printf("read:\t%s\n", m4);
     //check m4 for errors
-
+    checkM4(m4, setup_line);
     free(m4);
 
     //send m5
@@ -197,7 +304,7 @@ void echo(struct connection* arg)
     char* m6 = readMessage(c->fd);
     printf("read:\t%s\n", m6);
     //check m6 for errors
-
+    checkM6(m6);
     free(m6);
 
     close(c->fd);
