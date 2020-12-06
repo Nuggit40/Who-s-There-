@@ -7,6 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 #define BACKLOG 5
 
 // the argument we will pass to the connection-handler threads
@@ -114,25 +115,21 @@ char* readMessage(int fd){
     char* buffer = malloc(sizeof(char) * retsize);
     buffer[0] = '\0';
     int numread = 0;
-    int pipeCount = 0;
 	char c;
+    int count;
     do{
         status = read(fd, &c, 1);
 		if(status == -1) printf("READ ERROR\n");
         numread += status;
-        //increase buffer size as needed
         while(numread > retsize){
             retsize *= 2;
             buffer = realloc(buffer, retsize);
         }
         if(status > 0) {
 			buffer[numread - 1] = c;
-			if(c == '|'){
-				++pipeCount;
-				if(pipeCount == 3) break;
-			}
+            ioctl(fd, FIONREAD, &count);
         }
-    } while(status > 0);
+    } while(count > 0);
     buffer[numread] = '\0';
     return buffer;
 }
@@ -294,7 +291,7 @@ void echo(struct connection* arg)
     //read m2
     char* m2 = readMessage(c->fd);
     printf("read:\t%s\n", m2);
-    printf("TYPE CHEK :%d\n",readMsgType(m2));
+    //printf("TYPE CHEK :%d\n",readMsgType(m2));
     //check m2 for errors
     err = checkM2(m2);
     free(m2);
@@ -332,6 +329,10 @@ void append(char* s, char c) {
 }
 
 int readMsgType(char *message){
+    //returns:
+    //0 : valid REG
+    //1 : valid ERR
+    //2 : malformed message
        int pipe_count = 0;
        char buff[strlen(message)];
        char num_buff[256];

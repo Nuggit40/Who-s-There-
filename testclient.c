@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <errno.h>
-
+#include <sys/ioctl.h>
 #define HOST "localhost"
 #define PORT "8199"
 
@@ -16,8 +16,8 @@ char* readMessage(int fd){
     char* buffer = malloc(sizeof(char) * retsize);
     buffer[0] = '\0';
     int numread = 0;
-    int pipeCount = 0;
 	char c;
+	int count;
     do{
         status = read(fd, &c, 1);
 		if(status == -1) printf("READ ERROR\n");
@@ -28,12 +28,9 @@ char* readMessage(int fd){
         }
         if(status > 0) {
 			buffer[numread - 1] = c;
-			if(c == '|'){
-				++pipeCount;
-				if(pipeCount == 3) break;
-			}
+			ioctl(fd, FIONREAD, &count);
         }
-    } while(status > 0);
+    } while(count > 0);
     buffer[numread] = '\0';
     return buffer;
 }
