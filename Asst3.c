@@ -20,7 +20,7 @@ int readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
 int currentFD;
-
+struct connection* conn;
 int main(int argc, char **argv)
 {
 	if (argc != 2) {
@@ -143,6 +143,7 @@ char* readMessage(int fd){
         for(int i = numread; i < leftToRead; ++i){
             read(fd, &buffer[i], 1);
             ++numread;
+            if(buffer[i]=='|') break;
         }
     } else if(buffer[0]=='E' && buffer[1]=='R' && buffer[2]=='R' && buffer[3]=='|'){
         //read until you encounter the ending pipe
@@ -307,6 +308,7 @@ int checkM5(char* m5){
 void handleError(){
     printf("Exiting session...\n");
     close(currentFD);
+    free(conn);
 }
 
 void sendError(int errorcode, int turn, int fd){
@@ -371,6 +373,7 @@ void echo(struct connection* arg)
 {
     char host[100], port[10];
     struct connection *c = (struct connection *) arg;
+    conn = c;
     int error;
 	// find out the name and port of the remote host
     error = getnameinfo((struct sockaddr *) &c->addr, c->addr_len, host, 100, port, 10, NI_NUMERICSERV);
