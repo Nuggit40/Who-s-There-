@@ -19,6 +19,7 @@ struct connection {
 int readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
+int currentFD;
 
 int main(int argc, char **argv)
 {
@@ -30,6 +31,33 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
+void acceptConnection(struct connection* con, int sfd){
+    printf("Waiting for connection\n");
+    for (;;) {
+    	// create argument struct for child thread
+		con = malloc(sizeof(struct connection));
+        con->addr_len = sizeof(struct sockaddr_storage);
+        	// addr_len is a read/write parameter to accept
+        	// we set the initial value, saying how much space is available
+        	// after the call to accept, this field will contain the actual address length
+        // wait for an incoming connection
+        con->fd = accept(sfd, (struct sockaddr *) &con->addr, &con->addr_len);
+        	// we provide
+        	// sfd - the listening socket
+        	// &con->addr - a location to write the address of the remote host
+        	// &con->addr_len - a location to write the length of the address
+        	//
+        	// accept will block until a remote host tries to connect
+        	// it returns a new socket that can be used to communicate with the remote
+        	// host, and writes the address of the remote hist into the provided location
+        // if we got back -1, it means something went wrong
+        if (con->fd == -1) {
+            perror("accept");
+            continue;
+        }
+		echo(con);
+    }
+}
 
 int server(char *port)
 {
@@ -78,36 +106,14 @@ int server(char *port)
     }
     freeaddrinfo(address_list);
     // at this point sfd is bound and listening
-    printf("Waiting for connection\n");
-    for (;;) {
-    	// create argument struct for child thread
-		con = malloc(sizeof(struct connection));
-        con->addr_len = sizeof(struct sockaddr_storage);
-        	// addr_len is a read/write parameter to accept
-        	// we set the initial value, saying how much space is available
-        	// after the call to accept, this field will contain the actual address length
-        // wait for an incoming connection
-        con->fd = accept(sfd, (struct sockaddr *) &con->addr, &con->addr_len);
-        	// we provide
-        	// sfd - the listening socket
-        	// &con->addr - a location to write the address of the remote host
-        	// &con->addr_len - a location to write the length of the address
-        	//
-        	// accept will block until a remote host tries to connect
-        	// it returns a new socket that can be used to communicate with the remote
-        	// host, and writes the address of the remote hist into the provided location
-        // if we got back -1, it means something went wrong
-        if (con->fd == -1) {
-            perror("accept");
-            continue;
-        }
-		
-		echo(con);
-    }
+    acceptConnection(con, sfd);
+    
 
     // never reach here
     return 0;
 }
+
+
 
 char* readMessage(int fd){
     int status = -1;
@@ -146,7 +152,7 @@ void buffered_write(int fd, char *buf, int len) {
 	}
 }
 
-int checkM2(char* m2){
+int checkM1(char* m1){
     //returns: 
     //0 if valid message
     //1 if content error
@@ -154,19 +160,26 @@ int checkM2(char* m2){
     //3 if format error
     //4 if ERR message
 
-    //checking format
+    switch(readMsgType(m1)){
+        case 0:
+            //valid format, continue checking for length and content error
+            break;
+        case 1:
+            //valid error message
+            return 4;
+        case 2:
+            //format error
+            return 3;
+    }
 
     //format correct, checking content and length
     const char delim = '|';
     char* type;
     char* contentLen;
     char* content;
-    type = strtok(m2, &delim);
+    type = strtok(m1, &delim);
     contentLen = strtok(NULL, &delim);
     content = strtok(NULL, &delim);
-    // printf("type:%s\n", type);
-    // printf("contentLen:%s\n", contentLen);
-    // printf("content:%s\n", content);
     //checking content
     if(strcmp("Who's there?", content) != 0){
         return 1;
@@ -179,7 +192,7 @@ int checkM2(char* m2){
     return 0;
 }
 
-int checkM4(char* m4, char* setup_line){
+int checkM3(char* m3, char* setup_line){
     //returns: 
     //0 if valid message
     //1 if content error
@@ -188,13 +201,23 @@ int checkM4(char* m4, char* setup_line){
     //4 if ERR message
 
     //checking format
-
+    switch(readMsgType(m3)){
+        case 0:
+            //valid format, continue checking for length and content error
+            break;
+        case 1:
+            //valid error message
+            return 4;
+        case 2:
+            //format error
+            return 3;
+    }
     //format correct, checking content and length
     const char delim = '|';
     char* type;
     char* contentLen;
     char* content;
-    type = strtok(m4, &delim);
+    type = strtok(m3, &delim);
     contentLen = strtok(NULL, &delim);
     content = strtok(NULL, &delim);
     // printf("type:%s\n", type);
@@ -218,8 +241,8 @@ int checkM4(char* m4, char* setup_line){
     return 0;
 }
 
-int checkM6(char* m6){
-     //returns: 
+int checkM5(char* m5){
+    //returns: 
     //0 if valid message
     //1 if content error
     //2 if length error
@@ -227,13 +250,23 @@ int checkM6(char* m6){
     //4 if ERR message
 
     //checking format
-
+    switch(readMsgType(m5)){
+        case 0:
+            //valid format, continue checking for length and content error
+            break;
+        case 1:
+            //valid error message
+            return 4;
+        case 2:
+            //format error
+            return 3;
+    }
     //format correct, checking content and length
     const char delim = '|';
     char* type;
     char* contentLen;
     char* content;
-    type = strtok(m6, &delim);
+    type = strtok(m5, &delim);
     contentLen = strtok(NULL, &delim);
     content = strtok(NULL, &delim);
     // printf("type:%s\n", type);
@@ -253,6 +286,65 @@ int checkM6(char* m6){
     if(!ispunct(content[i])) return 1;
     //valid message
     return 0;
+}
+
+//close current socket connection and wait for a new connection
+void handleError(){
+    printf("Exiting session...\n");
+    close(currentFD);
+}
+
+void sendError(int errorcode, int turn, int fd){
+    char* errmsg;
+    switch(errorcode){
+            case 1:
+                //content error
+                switch(turn){
+                    case 1:
+                        errmsg = "ERR|M1CT|";
+                        break;
+                    case 3:
+                        errmsg = "ERR|M3CT|";
+                        break;
+                    case 5:
+                        errmsg = "ERR|M5CT|";
+                        break;
+                }
+                break;
+            case 2:
+                //length error
+                switch(turn){
+                    case 1:
+                        errmsg = "ERR|M1LN|";
+                        break;
+                    case 3:
+                        errmsg = "ERR|M3LN|";
+                        break;
+                    case 5:
+                        errmsg = "ERR|M5LN|";
+                        break;
+                }
+                break;
+            case 3:
+                //format error
+                switch(turn){
+                    case 1:
+                        errmsg = "ERR|M1FT|";
+                        break;
+                    case 3:
+                        errmsg = "ERR|M3FT|";
+                        break;
+                    case 5:
+                        errmsg = "ERR|M5FT|";
+                        break;
+                }
+                break;
+            case 4:
+                handleError();
+    }
+    printf("sent:\t%s\n", errmsg);
+    buffered_write(fd, errmsg, strlen(errmsg));
+    handleError();
 }
 
 struct joke {
@@ -280,44 +372,63 @@ void echo(struct connection* arg)
 
     //create joke
     struct joke curJoke = {"Who", "I didn't know you were an owl!"};
-
+    currentFD = c->fd;
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
     int err;
-    //send m1
-	char* m1 = "REG|13|Knock, knock.|";
-    buffered_write(c->fd, m1, strlen(m1));
-    printf("sent:\t%s\n", m1);
-    //read m2
-    char* m2 = readMessage(c->fd);
-    printf("read:\t%s\n", m2);
-    //printf("TYPE CHEK :%d\n",readMsgType(m2));
-    //check m2 for errors
-    err = checkM2(m2);
-    free(m2);
-    //send m3
-    char* m3 = "REG|4|Who.|";
+    //send m0
+	char* m0 = "REG|13|Knock, knock.|";
+    buffered_write(c->fd, m0, strlen(m0));
+    printf("sent:\t%s\n", m0);
+
+    //read m1
+    char* m1 = readMessage(c->fd);
+    printf("read:\t%s\n", m1);
+    //check m1 for errors
+    err = checkM1(m1);
+    if(err > 0) {
+        free(m1);
+        sendError(err, 1, c->fd);
+        return;
+    }
+    free(m1);
+
+    //send m2
+    char* m2 = "REG|4|Who.|";
     char* setup_line = "Who";
-    buffered_write(c->fd, m3, strlen(m3));
-    printf("sent:\t%s\n", m3);
-    //read m4
-    char* m4 = readMessage(c->fd);
-    printf("read:\t%s\n", m4);
-    //check m4 for errors
-    checkM4(m4, setup_line);
-    free(m4);
+    buffered_write(c->fd, m2, strlen(m2));
+    printf("sent:\t%s\n", m2);
 
-    //send m5
-    char* m5 = "REG|30|I didn't know you were an owl!|";
-    write(c->fd, m5, strlen(m5));
-    printf("sent:\t%s\n", m5);
+    //read m3
+    char* m3 = readMessage(c->fd);
+    printf("read:\t%s\n", m3);
+    //check m3 for errors
+    err = checkM3(m3, setup_line);
+    if(err > 0) {
+        printf("M3 err\n");
+        free(m3);
+        sendError(err, 3, c->fd);
+        return;
+    }
+    free(m3);
 
-    // //read m6
-    char* m6 = readMessage(c->fd);
-    printf("read:\t%s\n", m6);
-    //check m6 for errors
-    checkM6(m6);
-    free(m6);
+    //send m4
+    char* m4 = "REG|30|I didn't know you were an owl!|";
+    write(c->fd, m4, strlen(m4));
+    printf("sent:\t%s\n", m4);
+
+    //read m5
+    char* m5 = readMessage(c->fd);
+    printf("read:\t%s\n", m5);
+    //check m5 for errors
+    err = checkM5(m5);
+    if(err > 0) {
+        //printf("m5 err\n");
+        free(m5);
+        sendError(err, 5, c->fd);
+        return;
+    }
+    free(m5);
 
     close(c->fd);
     free(c);
@@ -343,7 +454,7 @@ int readMsgType(char *message){
        int word_check=0;
        int num_check=0;
        int err_check=0;
-       printf("message:%s\n",message);
+       //printf("message:%s\n",message);
     if(message[0]=='R'&& message[1]=='E' &&message[2]=='G'){
         i=3;
        while(i<strlen(message)){

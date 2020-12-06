@@ -49,16 +49,13 @@ void buffered_write(int fd, char *buf, int len) {
 
 void exchangeMessages(int sock){
 	//read m1
-	//printf("READING M1\n");
 	char* m1 = readMessage(sock);
 	printf("read:\t%s\n", m1);
 	free(m1);
 	//send m2
-	//printf("SENDING M2\n");
 	char* m2 = "REG|12|Who's there?|";
 	buffered_write(sock, m2, strlen(m2));
 	printf("sent:\t%s\n", m2);
-
 	//read m3
 	char* m3 = readMessage(sock);
 	printf("read:\t%s\n", m3);
