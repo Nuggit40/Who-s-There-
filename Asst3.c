@@ -20,7 +20,7 @@ int readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
 int currentFD;
-struct connection* conn;
+
 int main(int argc, char **argv)
 {
 	if (argc != 2) {
@@ -113,45 +113,29 @@ int server(char *port)
     return 0;
 }
 
+
+
 char* readMessage(int fd){
     int status = -1;
-    int retsize = 256;
+    int retsize = 100;
     char* buffer = malloc(sizeof(char) * retsize);
+    buffer[0] = '\0';
     int numread = 0;
-    //reading REG or ERR
-    for(numread = 0; numread < 4; ++numread){
-        read(fd, &buffer[numread], 1);
-    }
-    if(buffer[0]=='R' && buffer[1]=='E' && buffer[2]=='G' && buffer[3]=='|'){
-        do{
-            read(fd, &buffer[numread], 1);
-            numread++;
-        } while (isdigit(buffer[numread-1]));
-        //calculate size of content
-        int numstart = 4;
-        int numend = numread - 1;
-        char sizestr[numend-numstart+1];
-        memcpy(sizestr, &buffer[numstart], numend-numstart);
-        sizestr[numend-numstart] = '\0';
-        int contentSize = atoi(sizestr);
-        //if digits do not end with pipe, return and becomes format error 
-        if(buffer[numread-1] != '|'){
-            printf("%c\n",buffer[numread]);
-            return buffer;
+	char c;
+    int count;
+    do{
+        status = read(fd, &c, 1);
+		if(status == -1) printf("READ ERROR\n");
+        numread += status;
+        while(numread > retsize){
+            retsize *= 2;
+            buffer = realloc(buffer, retsize);
         }
-        int leftToRead = numread+contentSize+1;
-        for(int i = numread; i < leftToRead; ++i){
-            read(fd, &buffer[i], 1);
-            ++numread;
-            if(buffer[i]=='|') break;
+        if(status > 0) {
+			buffer[numread - 1] = c;
+            ioctl(fd, FIONREAD, &count);
         }
-    } else if(buffer[0]=='E' && buffer[1]=='R' && buffer[2]=='R' && buffer[3]=='|'){
-        //read until you encounter the ending pipe
-        do{
-            read(fd, &buffer[numread], 1);
-            numread++;
-        }while(buffer[numread-1] != '|');
-    } 
+    } while(count > 0);
     buffer[numread] = '\0';
     return buffer;
 }
@@ -308,7 +292,6 @@ int checkM5(char* m5){
 void handleError(){
     printf("Exiting session...\n");
     close(currentFD);
-    free(conn);
 }
 
 void sendError(int errorcode, int turn, int fd){
@@ -373,7 +356,6 @@ void echo(struct connection* arg)
 {
     char host[100], port[10];
     struct connection *c = (struct connection *) arg;
-    conn = c;
     int error;
 	// find out the name and port of the remote host
     error = getnameinfo((struct sockaddr *) &c->addr, c->addr_len, host, 100, port, 10, NI_NUMERICSERV);
@@ -402,6 +384,7 @@ void echo(struct connection* arg)
     //read m1
     char* m1 = readMessage(c->fd);
     printf("read:\t%s\n", m1);
+    printf("TYPE CHECK:%d\n",readMsgType(m1));
     //check m1 for errors
     err = checkM1(m1);
     if(err > 0) {
@@ -500,18 +483,18 @@ int readMsgType(char *message){
             return 0; // GOOD
         }
     }else if(message[0]=='E'&& message[1]=='R' && message[2]=='R'){
+       
             if(message[3]=='|'){
-                err_check=1;
+                err_check+=1;
                 if(message[4]=='M'){
-                    err_check=1;
-                    if(isalpha(message[5])){
-                        err_check=1;
-                        if((message[5]=='C' && message[6]=='T') ||(message[5]=='L' && message[6]=='N')||(message[5]=='F' && message[6]=='T')){
-                                err_check=1;
+                    err_check+=1;
+                    if(isdigit(message[5])){
+                        err_check+=1;
+                        if((message[6]=='C' && message[7]=='T') ||(message[6]=='L' && message[7]=='N')||(message[6]=='F' && message[7]=='T')){
+                            err_check+=1;
                         }else{
                             err_check=0;
                         }
-
                     }else{
                         err_check=0;
                     }
@@ -521,10 +504,12 @@ int readMsgType(char *message){
             }else{
                 err_check=0;
             }
-        if(err_check==1){
+            printf("ERROR CHECK:%d\n",err_check);
+        if(err_check==4){
             return 1;
         }
     }
+
             
     return 2; // BAD
 }
