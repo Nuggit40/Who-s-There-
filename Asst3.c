@@ -20,7 +20,7 @@ int readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
 int currentFD;
-
+struct connection* currentCon;
 int main(int argc, char **argv)
 {
 	if (argc != 2) {
@@ -55,6 +55,7 @@ void acceptConnection(struct connection* con, int sfd){
             perror("accept");
             continue;
         }
+        currentCon = con;
 		echo(con);
     }
 }
@@ -292,6 +293,7 @@ int checkM5(char* m5){
 void handleError(){
     printf("Exiting session...\n");
     close(currentFD);
+    free(currentCon);
 }
 
 void sendError(int errorcode, int turn, int fd){
@@ -341,6 +343,7 @@ void sendError(int errorcode, int turn, int fd){
                 break;
             case 4:
                 handleError();
+                return;
     }
     printf("sent:\t%s\n", errmsg);
     buffered_write(fd, errmsg, strlen(errmsg));
@@ -384,7 +387,6 @@ void echo(struct connection* arg)
     //read m1
     char* m1 = readMessage(c->fd);
     printf("read:\t%s\n", m1);
-    printf("TYPE CHECK:%d\n",readMsgType(m1));
     //check m1 for errors
     err = checkM1(m1);
     if(err > 0) {
