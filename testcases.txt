@@ -68,11 +68,9 @@ Testcase 5: invalid format for message 1 (missing vertical bar)
     Server:
         sent:   REG|13|Knock, knock.|
         read:   REG|12|Who's there?
-        sent:   ERR|M1FT|
-        Exiting session...
+        (wait for ending bar)
 
     Client:
         read:   REG|13|Knock, knock.|
         sent:   REG|12|Who's there?
-        read:   ERR|M1FT|
-        Exiting session...
+        (wait for response)

@@ -28,6 +28,10 @@ int main(int argc, char **argv)
 		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+    if(argv[1] < 0 || argv[1] > 65536){
+        printf("Invalid Port Number\n");
+        exit(EXIT_FAILURE);
+    }
     (void) server(argv[1]);
     return EXIT_SUCCESS;
 }
@@ -138,12 +142,11 @@ char* readMessage(int fd){
             printf("%c\n",buffer[numread]);
             return buffer;
         }
-        int leftToRead = numread+contentSize+1;
-        for(int i = numread; i < leftToRead; ++i){
-            read(fd, &buffer[i], 1);
+        //read until we encounter the final |
+        do{
+            read(fd, &buffer[numread], 1);
             ++numread;
-            if(buffer[i]=='|') break;
-        }
+        }while(buffer[numread-1] != '|');
     } else if(buffer[0]=='E' && buffer[1]=='R' && buffer[2]=='R' && buffer[3]=='|'){
         //read until you encounter the ending pipe
         do{
@@ -207,7 +210,6 @@ int checkM1(char* m1){
     }
     //checking length
     if((int)strlen(content) != atoi(contentLen)){
-        printf("%d not equal %d\n", (int)strlen(content), atoi(contentLen));
         return 2;
     }
     //valid message
