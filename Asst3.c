@@ -10,17 +10,18 @@
 #include <sys/ioctl.h>
 #define BACKLOG 5
 
-// the argument we will pass to the connection-handler threads
 struct connection {
     struct sockaddr_storage addr;
     socklen_t addr_len;
     int fd;
 };
+
 int readMsgType(char *message);
 void echo(struct connection* arg);
 int server(char *port);
 int currentFD;
 struct connection* currentCon;
+
 int main(int argc, char **argv)
 {
 	if (argc != 2) {
@@ -30,7 +31,7 @@ int main(int argc, char **argv)
     (void) server(argv[1]);
     return EXIT_SUCCESS;
 }
-
+//accepts a new client connection
 void acceptConnection(struct connection* con, int sfd){
     printf("Waiting for connection\n");
     for (;;) {
@@ -70,8 +71,7 @@ int server(char *port)
     hint.ai_family = AF_UNSPEC;
     hint.ai_socktype = SOCK_STREAM;
     hint.ai_flags = AI_PASSIVE;
-    	// setting AI_PASSIVE means that we want to create a listening socket
-
+    // setting AI_PASSIVE means that we want to create a listening socket
     // get socket and address info for listening port
     // - for a listening socket, give NULL as the host name (because the socket is on
     //   the local host)
@@ -108,39 +108,53 @@ int server(char *port)
     freeaddrinfo(address_list);
     // at this point sfd is bound and listening
     acceptConnection(con, sfd);
-    
-
     // never reach here
     return 0;
 }
-
-
-
+//reads a message from current client connection
 char* readMessage(int fd){
     int status = -1;
-    int retsize = 100;
+    int retsize = 256;
     char* buffer = malloc(sizeof(char) * retsize);
-    buffer[0] = '\0';
     int numread = 0;
-	char c;
-    int count;
-    do{
-        status = read(fd, &c, 1);
-		if(status == -1) printf("READ ERROR\n");
-        numread += status;
-        while(numread > retsize){
-            retsize *= 2;
-            buffer = realloc(buffer, retsize);
+    //reading REG or ERR
+    for(numread = 0; numread < 4; ++numread){
+        read(fd, &buffer[numread], 1);
+    }
+    if(buffer[0]=='R' && buffer[1]=='E' && buffer[2]=='G' && buffer[3]=='|'){
+        do{
+            read(fd, &buffer[numread], 1);
+            numread++;
+        } while (isdigit(buffer[numread-1]));
+        //calculate size of content
+        int numstart = 4;
+        int numend = numread - 1;
+        char sizestr[numend-numstart+1];
+        memcpy(sizestr, &buffer[numstart], numend-numstart);
+        sizestr[numend-numstart] = '\0';
+        int contentSize = atoi(sizestr);
+        //if digits do not end with pipe, return and becomes format error 
+        if(buffer[numread-1] != '|'){
+            printf("%c\n",buffer[numread]);
+            return buffer;
         }
-        if(status > 0) {
-			buffer[numread - 1] = c;
-            ioctl(fd, FIONREAD, &count);
+        int leftToRead = numread+contentSize+1;
+        for(int i = numread; i < leftToRead; ++i){
+            read(fd, &buffer[i], 1);
+            ++numread;
+            if(buffer[i]=='|') break;
         }
-    } while(count > 0);
+    } else if(buffer[0]=='E' && buffer[1]=='R' && buffer[2]=='R' && buffer[3]=='|'){
+        //read until you encounter the ending pipe
+        do{
+            read(fd, &buffer[numread], 1);
+            numread++;
+        }while(buffer[numread-1] != '|');
+    } 
     buffer[numread] = '\0';
     return buffer;
 }
-
+//sends buf to client fd
 void buffered_write(int fd, char *buf, int len) {
 	int cur = 0;
 	while (cur < len) {
@@ -152,15 +166,14 @@ void buffered_write(int fd, char *buf, int len) {
 		cur += nwrite;
 	}
 }
-
+//checks if Message 1 is of valid format
+//returns: 
+//0 if valid message
+//1 if content error
+//2 if length error
+//3 if format error
+//4 if ERR message
 int checkM1(char* m1){
-    //returns: 
-    //0 if valid message
-    //1 if content error
-    //2 if length error
-    //3 if format error
-    //4 if ERR message
-
     switch(readMsgType(m1)){
         case 0:
             //valid format, continue checking for length and content error
@@ -172,7 +185,6 @@ int checkM1(char* m1){
             //format error
             return 3;
     }
-
     //format correct, checking content and length
     const char delim = '|';
     char* type;
@@ -186,21 +198,21 @@ int checkM1(char* m1){
         return 1;
     }
     //checking length
-    if(strlen(content) != atoi(contentLen)){
+    if((int)strlen(content) != atoi(contentLen)){
+        printf("%d not equal %d\n", (int)strlen(content), atoi(contentLen));
         return 2;
     }
     //valid message
     return 0;
 }
-
+//checks if Message 3 is of valid format
+//returns: 
+//0 if valid message
+//1 if content error
+//2 if length error
+//3 if format error
+//4 if ERR message
 int checkM3(char* m3, char* setup_line){
-    //returns: 
-    //0 if valid message
-    //1 if content error
-    //2 if length error
-    //3 if format error
-    //4 if ERR message
-
     //checking format
     switch(readMsgType(m3)){
         case 0:
@@ -221,14 +233,10 @@ int checkM3(char* m3, char* setup_line){
     type = strtok(m3, &delim);
     contentLen = strtok(NULL, &delim);
     content = strtok(NULL, &delim);
-    // printf("type:%s\n", type);
-    // printf("contentLen:%s\n", contentLen);
-    // printf("content:%s\n", content);
     //checking content
     char* setup = malloc(sizeof(char) * strlen(setup_line) + 7);
     strcpy(setup, setup_line);
     strcat(setup, ", who?");
-    // printf("setup:%s\n", setup);
     if(strcmp(setup, content) != 0){
         free(setup);
         return 1;
@@ -241,15 +249,14 @@ int checkM3(char* m3, char* setup_line){
     //valid message
     return 0;
 }
-
+//checks if Message 3 is of valid format
+//returns: 
+//0 if valid message
+//1 if content error
+//2 if length error
+//3 if format error
+//4 if ERR message
 int checkM5(char* m5){
-    //returns: 
-    //0 if valid message
-    //1 if content error
-    //2 if length error
-    //3 if format error
-    //4 if ERR message
-
     //checking format
     switch(readMsgType(m5)){
         case 0:
@@ -270,10 +277,6 @@ int checkM5(char* m5){
     type = strtok(m5, &delim);
     contentLen = strtok(NULL, &delim);
     content = strtok(NULL, &delim);
-    // printf("type:%s\n", type);
-    // printf("contentLen:%s\n", contentLen);
-    // printf("content:%s\n", content);
-    
     //checking length
     if(strlen(content) != atoi(contentLen)){
         return 2;
@@ -295,7 +298,7 @@ void handleError(){
     close(currentFD);
     free(currentCon);
 }
-
+//sends an error message to the current client connected and shuts down current session
 void sendError(int errorcode, int turn, int fd){
     char* errmsg;
     switch(errorcode){
@@ -378,7 +381,7 @@ void echo(struct connection* arg)
     currentFD = c->fd;
     printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
-    int err;
+    int err = 0;
     //send m0
 	char* m0 = "REG|13|Knock, knock.|";
     buffered_write(c->fd, m0, strlen(m0));
@@ -408,7 +411,6 @@ void echo(struct connection* arg)
     //check m3 for errors
     err = checkM3(m3, setup_line);
     if(err > 0) {
-        printf("M3 err\n");
         free(m3);
         sendError(err, 3, c->fd);
         return;
@@ -436,17 +438,12 @@ void echo(struct connection* arg)
     close(c->fd);
     free(c);
 }
-void append(char* s, char c) {
-        int len = strlen(s);
-        s[len] = c;
-        s[len+1] = '\0';
-}
-
+//performs error checking for a given message
+//returns:
+//0 : valid REG
+//1 : valid ERR
+//2 : malformed message
 int readMsgType(char *message){
-    //returns:
-    //0 : valid REG
-    //1 : valid ERR
-    //2 : malformed message
        int pipe_count = 0;
        char buff[strlen(message)];
        char num_buff[256];
@@ -457,7 +454,6 @@ int readMsgType(char *message){
        int word_check=0;
        int num_check=0;
        int err_check=0;
-       //printf("message:%s\n",message);
     if(message[0]=='R'&& message[1]=='E' &&message[2]=='G'){
         i=3;
        while(i<strlen(message)){
@@ -482,7 +478,7 @@ int readMsgType(char *message){
            i++;
         }
         if(word_check ==1 && num_check ==1 && pipe_count==3){
-            return 0; // GOOD
+            return 0;
         }
     }else if(message[0]=='E'&& message[1]=='R' && message[2]=='R'){
        
@@ -511,9 +507,7 @@ int readMsgType(char *message){
             return 1;
         }
     }
-
-            
-    return 2; // BAD
+    return 2;
 }
 
     
