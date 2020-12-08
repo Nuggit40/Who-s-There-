@@ -186,14 +186,22 @@ int checkM1(char* m1){
             return 3;
     }
     //format correct, checking content and length
-    const char delim = '|';
-    char* type;
-    char* contentLen;
-    char* content;
-    type = strtok(m1, &delim);
-    contentLen = strtok(NULL, &delim);
-    content = strtok(NULL, &delim);
-    //checking content
+    char contentLen[10];
+    char content[256];
+    int i = 4;
+    while(isdigit(m1[i])){
+        contentLen[i-4] = m1[i];
+        ++i;
+    }
+    contentLen[i-4] = '\0';
+    //printf("contentlen:%s\n", contentLen);
+    ++i;//incrementing over '|'
+    int j = 0;
+    while(m1[i] != '|'){
+        content[j++] = m1[i++];
+    }
+    content[j] = '\0';
+    //printf("content:%s\n", content);
     if(strcmp("Who's there?", content) != 0){
         return 1;
     }
@@ -226,13 +234,21 @@ int checkM3(char* m3, char* setup_line){
             return 3;
     }
     //format correct, checking content and length
-    const char delim = '|';
-    char* type;
-    char* contentLen;
-    char* content;
-    type = strtok(m3, &delim);
-    contentLen = strtok(NULL, &delim);
-    content = strtok(NULL, &delim);
+    char contentLen[10];
+    char content[256];
+    int i = 4;
+    while(isdigit(m3[i])){
+        contentLen[i-4] = m3[i];
+        ++i;
+    }
+    contentLen[i-4] = '\0';
+    //printf("contentlen:%s\n", contentLen);
+    ++i;//incrementing over '|'
+    int j = 0;
+    while(m3[i] != '|'){
+        content[j++] = m3[i++];
+    }
+    content[j] = '\0';
     //checking content
     char* setup = malloc(sizeof(char) * strlen(setup_line) + 7);
     strcpy(setup, setup_line);
@@ -270,24 +286,32 @@ int checkM5(char* m5){
             return 3;
     }
     //format correct, checking content and length
-    const char delim = '|';
-    char* type;
-    char* contentLen;
-    char* content;
-    type = strtok(m5, &delim);
-    contentLen = strtok(NULL, &delim);
-    content = strtok(NULL, &delim);
+    char contentLen[10];
+    char content[256];
+    int i = 4;
+    while(isdigit(m5[i])){
+        contentLen[i-4] = m5[i];
+        ++i;
+    }
+    contentLen[i-4] = '\0';
+    //printf("contentlen:%s\n", contentLen);
+    ++i;//incrementing over '|'
+    int j = 0;
+    while(m5[i] != '|'){
+        content[j++] = m5[i++];
+    }
+    content[j] = '\0';
     //checking length
     if(strlen(content) != atoi(contentLen)){
         return 2;
     }
     //checking content
     //content should be a string of letters ended by punctuation
-    int i;
-    for(i = 0; i < atoi(contentLen) - 1; ++i){
-        if(!isalpha(content[i])) return 1;
+    int k;
+    for(k = 0; k < atoi(contentLen) - 1; ++k){
+        if(!isalpha(content[k])) return 1;
     }
-    if(!ispunct(content[i])) return 1;
+    if(!ispunct(content[k])) return 1;
     //valid message
     return 0;
 }
