@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-    if(argv[1] < 0 || argv[1] > 65536){
+    if(argv[1] < 0 || atoi(argv[1]) > 65536){
         printf("Invalid Port Number\n");
         exit(EXIT_FAILURE);
     }
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 }
 //accepts a new client connection
 void acceptConnection(struct connection* con, int sfd){
-    printf("Waiting for connection\n");
+    //printf("Waiting for connection\n");
     for (;;) {
     	// create argument struct for child thread
 		con = malloc(sizeof(struct connection));
@@ -318,9 +318,89 @@ int checkM5(char* m5){
     return 0;
 }
 
+void printErrorMsg(char* errormsg){
+    //message 0
+    if(strcmp(errormsg, "ERR|M0CT|") == 0){
+        printf("M0CT - message 0 content was not correct (i.e. should be “Knock, knock.”)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M0LN|") == 0){
+        printf("M0LN - message 0 length value was incorrect (i.e. should be 13 characters long)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M0FT|") == 0){
+        printf("M0FT - message 0 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+    //message 1
+    if(strcmp(errormsg, "ERR|M1CT|") == 0){
+        printf("M1CT - message 1 content was not correct (i.e. should be “Who's there?”)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M1LN|") == 0){
+        printf("M1LN - message 1 length value was incorrect (i.e. should be 12 characters long)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M1FT|") == 0){
+        printf("M1FT - message 1 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+    //message 2
+    if(strcmp(errormsg, "ERR|M2CT|") == 0){
+        printf("M2CT - message 2 content was not correct (i.e. missing punctuation)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M2LN|") == 0){
+        printf("M2LN - message 2 length value was incorrect (i.e. should be the length of the message)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M2FT|") == 0){
+        printf("M2FT - message 2 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+    //message 3
+    if(strcmp(errormsg, "ERR|M3CT|") == 0){
+        printf("M3CT - message 3 content was not correct (i.e. should contain message 2 with “, who?” tacked on)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M3LN|") == 0){
+        printf("M3LN - message 3 length value was incorrect (i.e. should be M2 length plus six)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M3FT|") == 0){
+        printf("M3FT - message 3 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+    //message 4
+    if(strcmp(errormsg, "ERR|M4CT|") == 0){
+        printf("M4CT - message 4 content was not correct (i.e. missing punctuation)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M4LN|") == 0){
+        printf("M4LN - message 4 length value was incorrect (i.e. should be the length of the message)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M4FT|") == 0){
+        printf("M4FT - message 4 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+    //message 5
+    if(strcmp(errormsg, "ERR|M5CT|") == 0){
+        printf("M5CT - message 5 content was not correct (i.e. missing punctuation)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M5LN|") == 0){
+        printf("M5LN - message 5 length value was incorrect (i.e. should be the length of the message)\n");
+        return;
+    }
+    if(strcmp(errormsg, "ERR|M5FT|") == 0){
+        printf("M5FT - message 5 format was broken (did not include a message type, missing or too many '|')\n");
+        return;
+    }
+}
 //close current socket connection and wait for a new connection
-void handleError(){
-    printf("Exiting session...\n");
+void handleError(char* errormsg){
+    printErrorMsg(errormsg);
     close(currentFD);
     free(currentCon);
 }
@@ -369,20 +449,10 @@ void sendError(int errorcode, int turn, int fd){
                         errmsg = "ERR|M5FT|";
                         break;
                 }
-                break;
-            case 4:
-                handleError();
-                return;
     }
-    printf("sent:\t%s\n", errmsg);
     buffered_write(fd, errmsg, strlen(errmsg));
-    handleError();
+    handleError(errmsg);
 }
-
-struct joke {
-    char* setup;
-    char* punchline;
-};
 
 void echo(struct connection* arg)
 {
@@ -401,24 +471,25 @@ void echo(struct connection* arg)
         close(c->fd);
         return;
     }
-
-    //create joke
-    struct joke curJoke = {"Who", "I didn't know you were an owl!"};
     currentFD = c->fd;
-    printf("[%s:%s] connection\n", host, port);
+    //printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
     int err = 0;
     //send m0
 	char* m0 = "REG|13|Knock, knock.|";
     buffered_write(c->fd, m0, strlen(m0));
-    printf("sent:\t%s\n", m0);
+    //printf("sent:\t%s\n", m0);
 
     //read m1
     char* m1 = readMessage(c->fd);
-    printf("read:\t%s\n", m1);
+    //printf("read:\t%s\n", m1);
     //check m1 for errors
     err = checkM1(m1);
     if(err > 0) {
+        if(err == 4){
+            handleError(m1);
+            return;
+        }
         free(m1);
         sendError(err, 1, c->fd);
         return;
@@ -429,14 +500,18 @@ void echo(struct connection* arg)
     char* m2 = "REG|4|Who.|";
     char* setup_line = "Who";
     buffered_write(c->fd, m2, strlen(m2));
-    printf("sent:\t%s\n", m2);
+    //printf("sent:\t%s\n", m2);
 
     //read m3
     char* m3 = readMessage(c->fd);
-    printf("read:\t%s\n", m3);
+    //printf("read:\t%s\n", m3);
     //check m3 for errors
     err = checkM3(m3, setup_line);
     if(err > 0) {
+        if(err == 4){
+            handleError(m3);
+            return;
+        }
         free(m3);
         sendError(err, 3, c->fd);
         return;
@@ -446,21 +521,23 @@ void echo(struct connection* arg)
     //send m4
     char* m4 = "REG|30|I didn't know you were an owl!|";
     write(c->fd, m4, strlen(m4));
-    printf("sent:\t%s\n", m4);
+    //printf("sent:\t%s\n", m4);
 
     //read m5
     char* m5 = readMessage(c->fd);
-    printf("read:\t%s\n", m5);
+    //printf("read:\t%s\n", m5);
     //check m5 for errors
     err = checkM5(m5);
     if(err > 0) {
-        //printf("m5 err\n");
+        if(err == 4){
+            handleError(m5);
+            return;
+        }
         free(m5);
         sendError(err, 5, c->fd);
         return;
     }
     free(m5);
-
     close(c->fd);
     free(c);
 }
@@ -528,7 +605,7 @@ int readMsgType(char *message){
             }else{
                 err_check=0;
             }
-            printf("ERROR CHECK:%d\n",err_check);
+            //printf("ERROR CHECK:%d\n",err_check);
         if(err_check==4){
             return 1;
         }
