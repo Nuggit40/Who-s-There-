@@ -317,7 +317,7 @@ int checkM5(char* m5){
     //valid message
     return 0;
 }
-
+//prints out the correct error message
 void printErrorMsg(char* errormsg){
     //message 0
     if(strcmp(errormsg, "ERR|M0CT|") == 0){
@@ -454,6 +454,7 @@ void sendError(int errorcode, int turn, int fd){
     handleError(errmsg);
 }
 
+//exchange messages with the connected client
 void echo(struct connection* arg)
 {
     char host[100], port[10];
@@ -472,17 +473,16 @@ void echo(struct connection* arg)
         return;
     }
     currentFD = c->fd;
-    //printf("[%s:%s] connection\n", host, port);
 	//EXCHANGING MESSAGES
     int err = 0;
     //send m0
 	char* m0 = "REG|13|Knock, knock.|";
     buffered_write(c->fd, m0, strlen(m0));
-    //printf("sent:\t%s\n", m0);
+    printf("sent:\t%s\n", m0);
 
     //read m1
     char* m1 = readMessage(c->fd);
-    //printf("read:\t%s\n", m1);
+    printf("read:\t%s\n", m1);
     //check m1 for errors
     err = checkM1(m1);
     if(err > 0) {
@@ -500,11 +500,11 @@ void echo(struct connection* arg)
     char* m2 = "REG|4|Who.|";
     char* setup_line = "Who";
     buffered_write(c->fd, m2, strlen(m2));
-    //printf("sent:\t%s\n", m2);
+    printf("sent:\t%s\n", m2);
 
     //read m3
     char* m3 = readMessage(c->fd);
-    //printf("read:\t%s\n", m3);
+    printf("read:\t%s\n", m3);
     //check m3 for errors
     err = checkM3(m3, setup_line);
     if(err > 0) {
@@ -521,11 +521,11 @@ void echo(struct connection* arg)
     //send m4
     char* m4 = "REG|30|I didn't know you were an owl!|";
     write(c->fd, m4, strlen(m4));
-    //printf("sent:\t%s\n", m4);
+    printf("sent:\t%s\n", m4);
 
     //read m5
     char* m5 = readMessage(c->fd);
-    //printf("read:\t%s\n", m5);
+    printf("read:\t%s\n", m5);
     //check m5 for errors
     err = checkM5(m5);
     if(err > 0) {
@@ -605,7 +605,6 @@ int readMsgType(char *message){
             }else{
                 err_check=0;
             }
-            //printf("ERROR CHECK:%d\n",err_check);
         if(err_check==4){
             return 1;
         }
