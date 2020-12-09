@@ -1,0 +1,76 @@
+Testcase 1: expected session
+    Server:
+        sent:   REG|13|Knock, knock.|
+        read:   REG|12|Who's there?|
+        sent:   REG|4|Who.|
+        read:   REG|9|Who, who?|
+        sent:   REG|30|I didn't know you were an owl!|
+        read:   REG|4|Ugh.|
+
+    Client:
+        read:   REG|13|Knock, knock.|
+        sent:   REG|12|Who's there?|
+        read:   REG|4|Who.|
+        sent:   REG|9|Who, who?|
+        read:   REG|30|I didn't know you were an owl!|
+        sent:   REG|4|Ugh.|
+
+Testcase 2: invalid message length for message 1
+    Server:
+        sent:   REG|13|Knock, knock.|
+        read:   REG|11|Who's there?|
+        sent:   ERR|M1LN|
+        Exiting session...
+
+    Client:
+        read:   REG|13|Knock, knock.|
+        sent:   REG|11|Who's there?|
+        read:   ERR|M1LN|
+        Exiting session...
+
+Testcase 3: invalid content for message 3 (wrong setup)
+    Server:
+        sent:   REG|13|Knock, knock.|
+        read:   REG|12|Who's there?|
+        sent:   REG|4|Who.|
+        read:   REG|9|Huh, who?|
+        sent:   ERR|M3CT|
+        Exiting session...
+
+    Client:
+        read:   REG|13|Knock, knock.|
+        sent:   REG|12|Who's there?|
+        read:   REG|4|Who.|
+        sent:   REG|9|Huh, who?|
+        read:   ERR|M3CT|
+        Exiting session...
+        
+Testcase 4: invalid format for message 5 (wrong ending character)
+    Server:
+        sent:   REG|13|Knock, knock.|
+        read:   REG|12|Who's there?|
+        sent:   REG|4|Who.|
+        read:   REG|9|Who, who?|
+        sent:   REG|30|I didn't know you were an owl!|
+        read:   REG|4|Ugh.)
+        sent:   ERR|M5FT|
+        Exiting session...
+
+    Client:
+        read:   REG|13|Knock, knock.|
+        sent:   REG|12|Who's there?|
+        read:   REG|4|Who.|
+        sent:   REG|9|Who, who?|
+        read:   REG|30|I didn't know you were an owl!|
+        sent:   REG|4|Ugh.)
+
+Testcase 5: invalid format for message 1 (missing vertical bar)
+    Server:
+        sent:   REG|13|Knock, knock.|
+        read:   REG|12|Who's there?
+        (wait for ending bar)
+
+    Client:
+        read:   REG|13|Knock, knock.|
+        sent:   REG|12|Who's there?
+        (wait for response)
